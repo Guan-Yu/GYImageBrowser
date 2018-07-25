@@ -78,7 +78,10 @@
 
 - (void)show {
     [_collectionView reloadData];
-    [self performSelector:@selector(displayIndex) withObject:nil afterDelay:0];
+    [self layoutIfNeeded];
+    
+    self->_collectionView.contentOffset = CGPointMake(self->_index * self->_collectionView.frame.size.width, 0);
+    [self updateIndexLabel];
     
     UIImage *image = _images[_index];
     if ([image isKindOfClass:[NSString class]]) {
@@ -152,23 +155,13 @@
     }];
 }
 
-- (void)displayIndex {
-    [_collectionView setContentOffset:CGPointMake([UIScreen mainScreen].bounds.size.width * _index, 0)];
-    [self updateIndex];
-}
-
-- (void)updateIndex {
-    _index = floorf((_collectionView.contentOffset.x+_collectionView.frame.size.width/2)/_collectionView.frame.size.width);
-    _index = MAX(0, _index);
-    _index = MIN(_index, _images.count-1);
+- (void)updateIndexLabel {
     _indexLabel.text = [NSString stringWithFormat:@"%ld/%ld",_index+1, _images.count];
-
-    [self performSelector:@selector(updateSaveBtnState) withObject:nil afterDelay:.1];
-}
-
-- (void)updateSaveBtnState {
-    GYImageBrowserCell *cell = (GYImageBrowserCell *)[_collectionView cellForItemAtIndexPath:[NSIndexPath indexPathForRow:_index inSection:0]];
-    _saveBtn.enabled = cell.image != nil;
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(.01 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        GYImageBrowserCell *cell = (GYImageBrowserCell *)[self->_collectionView cellForItemAtIndexPath:[NSIndexPath indexPathForRow:self->_index inSection:0]];
+        self->_saveBtn.enabled = cell.image != nil;
+    });
 }
 
 #pragma mark - Action
@@ -190,7 +183,6 @@
     [_collectionView registerNib:[UINib nibWithNibName:GYImageBrowserCell_ID bundle:nil] forCellWithReuseIdentifier:GYImageBrowserCell_ID];
     UICollectionViewFlowLayout *layout = (UICollectionViewFlowLayout *)_collectionView.collectionViewLayout;
     layout.itemSize = [UIScreen mainScreen].bounds.size;
-    [_collectionView reloadData];
 }
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
@@ -212,7 +204,10 @@
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    [self updateIndex];
+    _index = floorf((_collectionView.contentOffset.x+_collectionView.frame.size.width/2)/_collectionView.frame.size.width);
+    _index = MAX(0, _index);
+    _index = MIN(_index, _images.count-1);
+    [self updateIndexLabel];
 }
 
 #pragma mark - GYImageBrowserCellDelegate
